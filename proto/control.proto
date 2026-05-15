@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package longbridge.control.v1;
 
+option php_namespace = "Brown\\Longbridge\\Proto\\Control";
+option php_metadata_namespace = "Brown\\Longbridge\\Proto\\GPBMetadata";
 // control command, see document: https://open.longbridge.com/docs/socket/control-command
 enum Command {
   CMD_CLOSE = 0;

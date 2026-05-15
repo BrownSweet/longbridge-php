@@ -18,7 +18,8 @@
   },
   "autoload": {
     "psr-4": {
-      "Brown\\Longbridge\\": "src/"
+      "Brown\\Longbridge\\": "src/",
+      "Brown\\Longbridge\\Proto\\": "generated/Brown/Longbridge/Proto/"
     }
   }
 }
