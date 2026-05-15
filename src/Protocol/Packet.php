@@ -5,7 +5,6 @@
  *   Time:
  */
 
-<?php
 
 namespace Brown\Longbridge\Protocol;
 
