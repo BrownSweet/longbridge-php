@@ -5,6 +5,8 @@
  *   Time: 2026-05-15 12:03
  */
 
+declare(strict_types=1);
+
 namespace Brown\Longbridge;
 
 final class Config
@@ -13,32 +15,96 @@ final class Config
         public readonly string $httpBaseUrl,
         public readonly string $quoteWsUrl,
         public readonly string $tradeWsUrl,
-        public readonly string $authorizationHeader,
-    ) {
-    }
+        public readonly string $legacyAppKey,
+        public readonly string $legacyAppSecret,
+        private readonly string $legacyAccessToken,
 
-    public static function hk(string $authorizationHeader): self
+        public readonly string $OAuthAccessToken,
+    )
     {
-        return new self(
-            httpBaseUrl: 'https://openapi.longbridge.com',
-            quoteWsUrl: 'wss://openapi-quote.longbridge.com',
-            tradeWsUrl: 'wss://openapi-trade.longbridge.com',
-            authorizationHeader: $authorizationHeader,
-        );
     }
 
-    public static function cn(string $authorizationHeader): self
+    public static function cnHttp(string $accessToken): self
+    {
+        return self::cnOAuth('', '', '', $accessToken);
+    }
+
+    public static function hkHttp(string $accessToken): self
+    {
+        return self::hkOAuth('', '', '', $accessToken);
+    }
+
+    public static function cnOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
     {
         return new self(
             httpBaseUrl: 'https://openapi.longbridge.cn',
             quoteWsUrl: 'wss://openapi-quote.longbridge.cn',
             tradeWsUrl: 'wss://openapi-trade.longbridge.cn',
-            authorizationHeader: $authorizationHeader,
+            legacyAppKey: $legacyAppKey,
+            legacyAppSecret: $legacyAppSecret,
+            legacyAccessToken: $legacyAccessToken,
+            OAuthAccessToken: self::bearer($accessToken),
         );
     }
 
-    public function get()
+    public static function hkOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
     {
-        echo 2;
+        return new self(
+            httpBaseUrl: 'https://openapi.longbridge.com',
+            quoteWsUrl: 'wss://openapi-quote.longbridge.com',
+            tradeWsUrl: 'wss://openapi-trade.longbridge.com',
+            legacyAppKey: $legacyAppKey,
+            legacyAppSecret: $legacyAppSecret,
+            legacyAccessToken: $legacyAccessToken,
+            OAuthAccessToken: self::bearer($accessToken),
+        );
+    }
+
+    public function isOAuth(): bool
+    {
+        return str_starts_with($this->OAuthAccessToken, 'Bearer ');
+    }
+
+    public function accessToken(): string
+    {
+        if ($this->isOAuth()) {
+            return substr($this->OAuthAccessToken, 7);
+        }
+
+        return $this->OAuthAccessToken;
+    }
+
+    public function hasLegacyCredentials(): bool
+    {
+        return trim($this->legacyAppKey) !== ''
+            && trim($this->legacyAppSecret) !== ''
+            && trim($this->legacyAccessToken) !== '';
+    }
+
+    public function getLegacyAppKey(): string
+    {
+        return $this->legacyAppKey;
+    }
+
+    public function getLegacyAppSecret(): string
+    {
+        return $this->legacyAppSecret;
+    }
+
+    public function getLegacyAccessToken(): string
+    {
+        return $this->legacyAccessToken;
+    }
+
+    private static function bearer(string $accessToken): string
+    {
+        $accessToken = trim($accessToken);
+        if ($accessToken === '') {
+            throw new \InvalidArgumentException('accessToken is empty.');
+        }
+
+        return str_starts_with($accessToken, 'Bearer ')
+            ? $accessToken
+            : 'Bearer ' . $accessToken;
     }
 }

@@ -1,6 +1,6 @@
 {
   "name": "brown/longbridge-php",
-  "description": "Minimal PHP client for Longbridge OpenAPI socket protocol.",
+  "description": "Lightweight PHP client for Longbridge OpenAPI HTTP and socket protocols.",
   "type": "library",
   "minimum-stability": "stable",
   "license": "MIT",
@@ -12,9 +12,11 @@
   ],
   "require": {
     "php": ">=8.2",
-    "ext-swoole": "*",
     "guzzlehttp/guzzle": "^7.0",
     "google/protobuf": "^4.0"
+  },
+  "suggest": {
+    "ext-swoole": "Required only when using WebSocket quote or trade clients."
   },
   "autoload": {
     "psr-4": {
