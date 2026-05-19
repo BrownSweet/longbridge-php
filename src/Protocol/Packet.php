@@ -27,6 +27,11 @@ final class Packet
         return $this->type === PacketType::RESPONSE;
     }
 
+    public function isRequest(): bool
+    {
+        return $this->type === PacketType::REQUEST;
+    }
+
     public function isPush(): bool
     {
         return $this->type === PacketType::PUSH;

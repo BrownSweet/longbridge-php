@@ -92,10 +92,87 @@ final class LongbridgeCodec
         $reserve = ($header >> 6) & 0x03;
 
         return match ($type) {
+            PacketType::REQUEST => $this->decodeRequest($data, $gzip, $verify, $reserve),
             PacketType::RESPONSE => $this->decodeResponse($data, $gzip, $verify, $reserve),
             PacketType::PUSH => $this->decodePush($data, $gzip, $verify, $reserve),
             default => throw new RuntimeException("unsupported packet type: {$type}"),
         };
+    }
+
+    public function encodeResponse(
+        int $cmdCode,
+        int $requestId,
+        int $status = 0,
+        string $body = '',
+        bool $gzip = false
+    ): string
+    {
+        if ($gzip) {
+            $body = gzencode($body);
+            if ($body === false) {
+                throw new RuntimeException('gzip encode failed.');
+            }
+        }
+
+        $bodyLen = strlen($body);
+
+        if ($bodyLen > self::MAX_BODY_LENGTH) {
+            throw new RuntimeException('body too large.');
+        }
+
+        $header = $this->packHeader(
+            type: PacketType::RESPONSE,
+            verify: false,
+            gzip: $gzip,
+            reserve: 0
+        );
+
+        return $header
+            . chr($cmdCode & 0xff)
+            . pack('N', $requestId)
+            . chr($status & 0xff)
+            . $this->packUint24($bodyLen)
+            . $body;
+    }
+
+    private function decodeRequest(
+        string $data,
+        bool   $gzip,
+        bool   $verify,
+        int    $reserve
+    ): Packet
+    {
+        if (strlen($data) < 11) {
+            throw new RuntimeException('invalid request packet length.');
+        }
+
+        $cmdCode = ord($data[1]);
+        $requestId = unpack('N', substr($data, 2, 4))[1];
+        $bodyLen = $this->unpackUint24(substr($data, 8, 3));
+
+        $bodyStart = 11;
+        $body = substr($data, $bodyStart, $bodyLen);
+        if (strlen($body) !== $bodyLen) {
+            throw new RuntimeException('request body length mismatch.');
+        }
+
+        if ($gzip) {
+            $body = gzdecode($body);
+            if ($body === false) {
+                throw new RuntimeException('gzip decode failed.');
+            }
+        }
+
+        return new Packet(
+            type: PacketType::REQUEST,
+            cmdCode: $cmdCode,
+            body: $body,
+            requestId: $requestId,
+            status: null,
+            gzip: $gzip,
+            verify: $verify,
+            reserve: $reserve
+        );
     }
 
     private function decodeResponse(
