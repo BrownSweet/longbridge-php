@@ -15,26 +15,49 @@ final class Config
         public readonly string $httpBaseUrl,
         public readonly string $quoteWsUrl,
         public readonly string $tradeWsUrl,
-        public readonly string $legacyAppKey,
-        public readonly string $legacyAppSecret,
-        private readonly string $legacyAccessToken,
-
-        public readonly string $OAuthAccessToken,
-    )
-    {
+        public readonly string $legacyAppKey = '',
+        public readonly string $legacyAppSecret = '',
+        private readonly string $legacyAccessToken = '',
+        public readonly string $OAuthAccessToken = '',
+    ) {
     }
 
     public static function cnHttp(string $accessToken): self
     {
-        return self::cnOAuth('', '', '', $accessToken);
+        return self::cnHybrid('', '', '', $accessToken);
     }
 
     public static function hkHttp(string $accessToken): self
     {
-        return self::hkOAuth('', '', '', $accessToken);
+        return self::hkHybrid('', '', '', $accessToken);
+    }
+
+    public static function cnLegacy(string $appKey, string $appSecret, string $accessToken): self
+    {
+        return self::cnHybrid($appKey, $appSecret, $accessToken, '');
+    }
+
+    public static function hkLegacy(string $appKey, string $appSecret, string $accessToken): self
+    {
+        return self::hkHybrid($appKey, $appSecret, $accessToken, '');
     }
 
     public static function cnOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
+    {
+        return self::cnHybrid($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken);
+    }
+
+    public static function hkOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
+    {
+        return self::hkHybrid($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken);
+    }
+
+    public static function cnHybrid(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self
     {
         return new self(
             httpBaseUrl: 'https://openapi.longbridge.cn',
@@ -43,11 +66,16 @@ final class Config
             legacyAppKey: $legacyAppKey,
             legacyAppSecret: $legacyAppSecret,
             legacyAccessToken: $legacyAccessToken,
-            OAuthAccessToken: self::bearer($accessToken),
+            OAuthAccessToken: self::oauthToken($accessToken),
         );
     }
 
-    public static function hkOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
+    public static function hkHybrid(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self
     {
         return new self(
             httpBaseUrl: 'https://openapi.longbridge.com',
@@ -56,22 +84,28 @@ final class Config
             legacyAppKey: $legacyAppKey,
             legacyAppSecret: $legacyAppSecret,
             legacyAccessToken: $legacyAccessToken,
-            OAuthAccessToken: self::bearer($accessToken),
+            OAuthAccessToken: self::oauthToken($accessToken),
         );
     }
 
     public function isOAuth(): bool
     {
-        return str_starts_with($this->OAuthAccessToken, 'Bearer ');
+        return $this->hasOAuthToken();
+    }
+
+    public function hasOAuthToken(): bool
+    {
+        return self::oauthToken($this->OAuthAccessToken) !== '';
     }
 
     public function accessToken(): string
     {
-        if ($this->isOAuth()) {
-            return substr($this->OAuthAccessToken, 7);
+        $accessToken = self::oauthToken($this->OAuthAccessToken);
+        if ($accessToken === '') {
+            throw new \InvalidArgumentException('OAuth accessToken is empty.');
         }
 
-        return $this->OAuthAccessToken;
+        return $accessToken;
     }
 
     public function hasLegacyCredentials(): bool
@@ -93,18 +127,20 @@ final class Config
 
     public function getLegacyAccessToken(): string
     {
-        return $this->legacyAccessToken;
-    }
-
-    private static function bearer(string $accessToken): string
-    {
-        $accessToken = trim($accessToken);
-        if ($accessToken === '') {
-            throw new \InvalidArgumentException('accessToken is empty.');
+        $accessToken = trim($this->legacyAccessToken);
+        if (str_starts_with($accessToken, 'Bearer ')) {
+            throw new \InvalidArgumentException('Legacy access token must not start with Bearer.');
         }
 
+        return $accessToken;
+    }
+
+    private static function oauthToken(string $accessToken): string
+    {
+        $accessToken = trim($accessToken);
+
         return str_starts_with($accessToken, 'Bearer ')
-            ? $accessToken
-            : 'Bearer ' . $accessToken;
+            ? trim(substr($accessToken, 7))
+            : $accessToken;
     }
 }

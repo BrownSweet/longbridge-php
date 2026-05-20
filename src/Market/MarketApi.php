@@ -9,13 +9,13 @@ declare(strict_types=1);
 
 namespace Brown\Longbridge\Market;
 
-use Brown\Longbridge\Http\OAuthHttpClient;
+use Brown\Longbridge\Http\HttpClientInterface;
 use Brown\Longbridge\Support\Symbol;
 
 final class MarketApi
 {
     public function __construct(
-        private readonly OAuthHttpClient $client
+        private readonly HttpClientInterface $client
     ) {
     }
 

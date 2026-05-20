@@ -8,12 +8,12 @@ declare(strict_types=1);
 
 namespace Brown\Longbridge\Asset;
 
-use Brown\Longbridge\Http\OAuthHttpClient;
+use Brown\Longbridge\Http\HttpClientInterface;
 
 final class AssetApi
 {
     public function __construct(
-        private readonly OAuthHttpClient $client
+        private readonly HttpClientInterface $client
     ) {
     }
 

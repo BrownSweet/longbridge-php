@@ -9,12 +9,12 @@ declare(strict_types=1);
 
 namespace Brown\Longbridge\Calendar;
 
-use Brown\Longbridge\Http\OAuthHttpClient;
+use Brown\Longbridge\Http\HttpClientInterface;
 
 final class CalendarApi
 {
     public function __construct(
-        private readonly OAuthHttpClient $client
+        private readonly HttpClientInterface $client
     ) {
     }
 

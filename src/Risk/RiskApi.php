@@ -9,12 +9,12 @@ declare(strict_types=1);
 
 namespace Brown\Longbridge\Risk;
 
-use Brown\Longbridge\Http\OAuthHttpClient;
+use Brown\Longbridge\Http\HttpClientInterface;
 
 final class RiskApi
 {
     public function __construct(
-        private readonly OAuthHttpClient $client
+        private readonly HttpClientInterface $client
     ) {
     }
 

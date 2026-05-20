@@ -10,7 +10,10 @@ use Brown\Longbridge\Account\PortfolioApi;
 use Brown\Longbridge\Asset\AssetApi;
 use Brown\Longbridge\Calendar\CalendarApi;
 use Brown\Longbridge\Fundamental\FundamentalApi;
+use Brown\Longbridge\Http\AutoHttpClient;
+use Brown\Longbridge\Http\LegacyHttpClient;
 use Brown\Longbridge\Http\OAuthHttpClient;
+use Brown\Longbridge\Http\SocketOtpApi;
 use Brown\Longbridge\Http\SocketTokenApi;
 use Brown\Longbridge\Market\MarketApi;
 use Brown\Longbridge\Quote\Http\QuoteHttpApi;
@@ -19,12 +22,11 @@ use Brown\Longbridge\Risk\RiskApi;
 use Brown\Longbridge\Socket\LongbridgeWsClient;
 use Brown\Longbridge\Trade\TradeApi;
 use Brown\Longbridge\Trade\TradeSocketApi;
-use RuntimeException;
 
 final class LongbridgeClient
 {
     private Config $config;
-    private OAuthHttpClient $http;
+    private AutoHttpClient $http;
     private ?AssetApi $asset = null;
     private ?TradeApi $trade = null;
     private ?RiskApi $risk = null;
@@ -35,19 +37,28 @@ final class LongbridgeClient
     private ?CalendarApi $calendar = null;
     private ?FundamentalApi $fundamental = null;
     private ?QuoteHttpApi $quoteHttp = null;
-    private ?SocketTokenApi $socketOtp = null;
+    private ?SocketOtpApi $socketOtp = null;
 
     public function __construct(Config $config)
     {
         $this->config = $config;
-        $this->http = new OAuthHttpClient(
-            $this->config->httpBaseUrl,
-            $this->config->accessToken()
+        $this->http = new AutoHttpClient(
+            $this->config->hasOAuthToken()
+                ? new OAuthHttpClient($this->config->httpBaseUrl, $this->config->accessToken())
+                : null,
+            $this->config->hasLegacyCredentials()
+                ? new LegacyHttpClient(
+                    $this->config->httpBaseUrl,
+                    $this->config->getLegacyAppKey(),
+                    $this->config->getLegacyAppSecret(),
+                    $this->config->getLegacyAccessToken(),
+                )
+                : null,
         );
     }
 
     /**
-     * 创建中国区 HTTP/OAuth 客户端，不需要 legacy/socket 凭证。
+     * 创建中国区 HTTP/OAuth 客户端。
      */
     public static function cnHttp(string $accessToken): self
     {
@@ -55,7 +66,7 @@ final class LongbridgeClient
     }
 
     /**
-     * 创建海外区 HTTP/OAuth 客户端，不需要 legacy/socket 凭证。
+     * 创建海外区 HTTP/OAuth 客户端。
      */
     public static function hkHttp(string $accessToken): self
     {
@@ -63,7 +74,23 @@ final class LongbridgeClient
     }
 
     /**
-     * 创建中国区客户端，同时保留 legacy 凭证以支持 socket OTP。
+     * 创建中国区 legacy 签名客户端。
+     */
+    public static function cnLegacy(string $appKey, string $appSecret, string $accessToken): self
+    {
+        return new self(Config::cnLegacy($appKey, $appSecret, $accessToken));
+    }
+
+    /**
+     * 创建海外区 legacy 签名客户端。
+     */
+    public static function hkLegacy(string $appKey, string $appSecret, string $accessToken): self
+    {
+        return new self(Config::hkLegacy($appKey, $appSecret, $accessToken));
+    }
+
+    /**
+     * 创建中国区 hybrid 客户端，兼容旧入口。
      */
     public static function cnOAuth(
         string $legacyAppKey,
@@ -75,7 +102,7 @@ final class LongbridgeClient
     }
 
     /**
-     * 创建海外区客户端，同时保留 legacy 凭证以支持 socket OTP。
+     * 创建海外区 hybrid 客户端，兼容旧入口。
      */
     public static function hkOAuth(
         string $legacyAppKey,
@@ -87,6 +114,30 @@ final class LongbridgeClient
     }
 
     /**
+     * 创建中国区 hybrid 客户端，HTTP 默认优先 OAuth。
+     */
+    public static function cnHybrid(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self {
+        return new self(Config::cnHybrid($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken));
+    }
+
+    /**
+     * 创建海外区 hybrid 客户端，HTTP 默认优先 OAuth。
+     */
+    public static function hkHybrid(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self {
+        return new self(Config::hkHybrid($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken));
+    }
+
+    /**
      * 返回当前配置。
      */
     public function config(): Config
@@ -95,11 +146,27 @@ final class LongbridgeClient
     }
 
     /**
-     * 返回底层 HTTP 客户端，便于调用未封装的新接口。
+     * 返回 hybrid 默认 HTTP 客户端，便于调用未封装的新接口。
      */
-    public function http(): OAuthHttpClient
+    public function http(): AutoHttpClient
     {
         return $this->http;
+    }
+
+    /**
+     * 返回 OAuth HTTP 客户端，便于调用未封装的 OAuth 接口。
+     */
+    public function oauthHttp(): OAuthHttpClient
+    {
+        return $this->http->oauth();
+    }
+
+    /**
+     * 返回 legacy 签名 HTTP 客户端，便于调用未封装的 legacy 接口。
+     */
+    public function legacyHttp(): LegacyHttpClient
+    {
+        return $this->http->legacy();
     }
 
     /**
@@ -107,11 +174,6 @@ final class LongbridgeClient
      */
     public function setAccessToken(string $accessToken): void
     {
-        $accessToken = trim($accessToken);
-        if (str_starts_with($accessToken, 'Bearer ')) {
-            $accessToken = substr($accessToken, 7);
-        }
-
         $this->http->setAccessToken($accessToken);
         $this->socketOtp = null;
     }
@@ -200,7 +262,6 @@ final class LongbridgeClient
      * 创建并鉴权 Quote WebSocket 客户端。
      *
      * @param string|null $otp 一次性 socket token；为空时调用 socketOtp()->getOtp() 获取。
-     * @return LongbridgeWsClient 已连接并完成鉴权的行情 WebSocket 客户端。
      */
     public function quoteWs(?string $otp = null): LongbridgeWsClient
     {
@@ -211,7 +272,6 @@ final class LongbridgeClient
      * 创建并鉴权 Trade WebSocket 客户端。
      *
      * @param string|null $otp 一次性 socket token；为空时调用 socketOtp()->getOtp() 获取。
-     * @return LongbridgeWsClient 已连接并完成鉴权的交易推送 WebSocket 客户端。
      */
     public function tradeWs(?string $otp = null): LongbridgeWsClient
     {
@@ -220,9 +280,6 @@ final class LongbridgeClient
 
     /**
      * Quote WebSocket API 门面，包含 pull、subscribe、push 三组能力。
-     *
-     * @param LongbridgeWsClient|null $client 已连接客户端；为空时自动调用 quoteWs()。
-     * @param string|null $otp 自动连接时使用的一次性 socket token。
      */
     public function quoteSocket(?LongbridgeWsClient $client = null, ?string $otp = null): QuoteSocketApi
     {
@@ -231,9 +288,6 @@ final class LongbridgeClient
 
     /**
      * Trade WebSocket API 门面，包含 private 主题订阅与通知等待。
-     *
-     * @param LongbridgeWsClient|null $client 已连接客户端；为空时自动调用 tradeWs()。
-     * @param string|null $otp 自动连接时使用的一次性 socket token。
      */
     public function tradeSocket(?LongbridgeWsClient $client = null, ?string $otp = null): TradeSocketApi
     {
@@ -241,19 +295,20 @@ final class LongbridgeClient
     }
 
     /**
-     * 获取 socket OTP。仅 legacy 凭证齐全时可用。
+     * 获取 socket OTP。hybrid 优先 OAuth，没有 OAuth 时使用 legacy 签名。
      */
-    public function socketOtp(): SocketTokenApi
+    public function socketOtp(): SocketOtpApi
     {
-        if (!$this->config->hasLegacyCredentials()) {
-            throw new RuntimeException('Legacy app key, app secret and access token are required for socketOtp().');
-        }
-
-        return $this->socketOtp ??= new SocketTokenApi(
-            $this->config->httpBaseUrl,
-            $this->config->getLegacyAppKey(),
-            $this->config->getLegacyAppSecret(),
-            $this->config->getLegacyAccessToken(),
+        return $this->socketOtp ??= new SocketOtpApi(
+            $this->http->hasOAuth() ? $this->http->oauth() : null,
+            $this->config->hasLegacyCredentials()
+                ? new SocketTokenApi(
+                    $this->config->httpBaseUrl,
+                    $this->config->getLegacyAppKey(),
+                    $this->config->getLegacyAppSecret(),
+                    $this->config->getLegacyAccessToken(),
+                )
+                : null,
         );
     }
 
