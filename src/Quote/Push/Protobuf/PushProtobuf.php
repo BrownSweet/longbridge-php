@@ -1,35 +1,46 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Brown\Longbridge\Quote\Push\Protobuf;
 
-use Brown\Longbridge\Proto\Control\PushQuote;
-/**
- *   Author:Brown
- *   Email: 455764041@qq.com
- *   Time: 2026-05-16 20:21
- */
-class PushProtobuf
+use Brown\Longbridge\Proto\Quote\PushBrokers;
+use Brown\Longbridge\Proto\Quote\PushDepth;
+use Brown\Longbridge\Proto\Quote\PushQuote;
+use Brown\Longbridge\Proto\Quote\PushTrade;
+use Brown\Longbridge\Support\Protobuf;
+
+final class PushProtobuf
 {
+    /**
+     * 解析实时报价推送。
+     */
     public static function decodePushQuote(string $body): array
     {
-        $pushQuote = new PushQuote();
-        $pushQuote->mergeFromString($body);
+        return Protobuf::decode($body, PushQuote::class);
+    }
 
-        return [
-            'symbol' => $pushQuote->getSymbol(),
-            'sequence' => $pushQuote->getSequence(),
-            'last_done' => $pushQuote->getLastDone(),
-            'open' => $pushQuote->getOpen(),
-            'high' => $pushQuote->getHigh(),
-            'low' => $pushQuote->getLow(),
-            'timestamp' => $pushQuote->getTimestamp(),
-            'volume' => $pushQuote->getVolume(),
-            'turnover' => $pushQuote->getTurnover(),
-            'trade_status' => $pushQuote->getTradeStatus(),
-            'trade_session' => $pushQuote->getTradeSession(),
-            'current_volume' => $pushQuote->getCurrentVolume(),
-            'current_turnover' => $pushQuote->getCurrentTurnover(),
-            'tag' => $pushQuote->getTag(),
-        ];
+    /**
+     * 解析盘口推送。
+     */
+    public static function decodePushDepth(string $body): array
+    {
+        return Protobuf::decode($body, PushDepth::class);
+    }
+
+    /**
+     * 解析经纪队列推送。
+     */
+    public static function decodePushBrokers(string $body): array
+    {
+        return Protobuf::decode($body, PushBrokers::class);
+    }
+
+    /**
+     * 解析成交明细推送。
+     */
+    public static function decodePushTrade(string $body): array
+    {
+        return Protobuf::decode($body, PushTrade::class);
     }
 }

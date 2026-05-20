@@ -1,57 +1,34 @@
 <?php
-/**
- *   Author:Brown
- *   Email: 455764041@qq.com
- *   Time:
- */
+
+declare(strict_types=1);
 
 namespace Brown\Longbridge\Quote\Pull\Protobuf;
 
-use Brown\Longbridge\Proto\Control\Depth;
-use Brown\Longbridge\Proto\Control\MultiSecurityRequest;
-use Brown\Longbridge\Proto\Control\SecurityDepthResponse;
+use Brown\Longbridge\Proto\Quote\SecurityDepthResponse;
 
-class SecurityDepthProtobuf
+final class SecurityDepthProtobuf
 {
+    /**
+     * 构造单标的盘口请求。
+     */
+    public static function securityRequest(string $symbol): string
+    {
+        return QuoteProtobuf::securityRequest($symbol);
+    }
+
+    /**
+     * 兼容旧方法名。盘口官方请求实际为单标的，传入数组时取第一个标的。
+     */
     public static function multiSecurityRequest(array $symbols): string
     {
-        $multiSecurityRequest = new MultiSecurityRequest();
-
-        $multiSecurityRequest->setSymbol($symbols);
-
-        return $multiSecurityRequest->serializeToString();
+        return self::securityRequest((string)reset($symbols));
     }
 
-    public static function decodeSecurityDepthResponse(string $body):array
+    /**
+     * 解析盘口响应。
+     */
+    public static function decodeSecurityDepthResponse(string $body): array
     {
-        $response = new SecurityDepthResponse();
-        $response->mergeFromString($body);
-
-
-        return [
-            'symbol'=>$response->getSymbol(),
-            'ask' => self::depthList($response->getAsk()),
-            'bid' => self::depthList($response->getBid()),
-        ];
-    }
-
-    private static function depthList(iterable $items): array
-    {
-        $rows = [];
-
-        foreach ($items as $depth) {
-            if (!$depth instanceof Depth) {
-                continue;
-            }
-
-            $rows[] = [
-                'position' => $depth->getPosition(),
-                'price' => $depth->getPrice(),
-                'volume' => $depth->getVolume(),
-                'order_num' => $depth->getOrderNum(),
-            ];
-        }
-
-        return $rows;
+        return QuoteProtobuf::decode($body, SecurityDepthResponse::class);
     }
 }

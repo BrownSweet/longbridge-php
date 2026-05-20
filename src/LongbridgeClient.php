@@ -1,9 +1,5 @@
 <?php
-/**
- *   Author:Brown
- *   Email: 455764041@qq.com
- *   Time:
- */
+
 declare(strict_types=1);
 
 namespace Brown\Longbridge;
@@ -18,8 +14,12 @@ use Brown\Longbridge\Http\OAuthHttpClient;
 use Brown\Longbridge\Http\SocketTokenApi;
 use Brown\Longbridge\Market\MarketApi;
 use Brown\Longbridge\Quote\Http\QuoteHttpApi;
+use Brown\Longbridge\Quote\QuoteSocketApi;
 use Brown\Longbridge\Risk\RiskApi;
+use Brown\Longbridge\Socket\LongbridgeWsClient;
 use Brown\Longbridge\Trade\TradeApi;
+use Brown\Longbridge\Trade\TradeSocketApi;
+use RuntimeException;
 
 final class LongbridgeClient
 {
@@ -65,16 +65,24 @@ final class LongbridgeClient
     /**
      * 创建中国区客户端，同时保留 legacy 凭证以支持 socket OTP。
      */
-    public static function cnOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
-    {
+    public static function cnOAuth(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self {
         return new self(Config::cnOAuth($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken));
     }
 
     /**
      * 创建海外区客户端，同时保留 legacy 凭证以支持 socket OTP。
      */
-    public static function hkOAuth(string $legacyAppKey, string $legacyAppSecret, string $legacyAccessToken, string $accessToken): self
-    {
+    public static function hkOAuth(
+        string $legacyAppKey,
+        string $legacyAppSecret,
+        string $legacyAccessToken,
+        string $accessToken
+    ): self {
         return new self(Config::hkOAuth($legacyAppKey, $legacyAppSecret, $legacyAccessToken, $accessToken));
     }
 
@@ -189,12 +197,56 @@ final class LongbridgeClient
     }
 
     /**
+     * 创建并鉴权 Quote WebSocket 客户端。
+     *
+     * @param string|null $otp 一次性 socket token；为空时调用 socketOtp()->getOtp() 获取。
+     * @return LongbridgeWsClient 已连接并完成鉴权的行情 WebSocket 客户端。
+     */
+    public function quoteWs(?string $otp = null): LongbridgeWsClient
+    {
+        return $this->connectWs($this->config->quoteWsUrl, $otp);
+    }
+
+    /**
+     * 创建并鉴权 Trade WebSocket 客户端。
+     *
+     * @param string|null $otp 一次性 socket token；为空时调用 socketOtp()->getOtp() 获取。
+     * @return LongbridgeWsClient 已连接并完成鉴权的交易推送 WebSocket 客户端。
+     */
+    public function tradeWs(?string $otp = null): LongbridgeWsClient
+    {
+        return $this->connectWs($this->config->tradeWsUrl, $otp);
+    }
+
+    /**
+     * Quote WebSocket API 门面，包含 pull、subscribe、push 三组能力。
+     *
+     * @param LongbridgeWsClient|null $client 已连接客户端；为空时自动调用 quoteWs()。
+     * @param string|null $otp 自动连接时使用的一次性 socket token。
+     */
+    public function quoteSocket(?LongbridgeWsClient $client = null, ?string $otp = null): QuoteSocketApi
+    {
+        return new QuoteSocketApi($client ?? $this->quoteWs($otp));
+    }
+
+    /**
+     * Trade WebSocket API 门面，包含 private 主题订阅与通知等待。
+     *
+     * @param LongbridgeWsClient|null $client 已连接客户端；为空时自动调用 tradeWs()。
+     * @param string|null $otp 自动连接时使用的一次性 socket token。
+     */
+    public function tradeSocket(?LongbridgeWsClient $client = null, ?string $otp = null): TradeSocketApi
+    {
+        return new TradeSocketApi($client ?? $this->tradeWs($otp));
+    }
+
+    /**
      * 获取 socket OTP。仅 legacy 凭证齐全时可用。
      */
     public function socketOtp(): SocketTokenApi
     {
         if (!$this->config->hasLegacyCredentials()) {
-            throw new \RuntimeException('Legacy app key, app secret and access token are required for socketOtp().');
+            throw new RuntimeException('Legacy app key, app secret and access token are required for socketOtp().');
         }
 
         return $this->socketOtp ??= new SocketTokenApi(
@@ -203,5 +255,14 @@ final class LongbridgeClient
             $this->config->getLegacyAppSecret(),
             $this->config->getLegacyAccessToken(),
         );
+    }
+
+    private function connectWs(string $wsUrl, ?string $otp): LongbridgeWsClient
+    {
+        $client = new LongbridgeWsClient($wsUrl);
+        $client->connect();
+        $client->authenticate($otp ?? $this->socketOtp()->getOtp());
+
+        return $client;
     }
 }

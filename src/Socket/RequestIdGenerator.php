@@ -11,6 +11,9 @@ final class RequestIdGenerator
 {
     private int $current = 0;
 
+    /**
+     * 生成 WebSocket 请求 ID，超过 uint32 范围后回到 1。
+     */
     public function next(): int
     {
         $this->current++;

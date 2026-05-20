@@ -16,7 +16,7 @@ class Api
         }
         $pool->internalAddGeneratedFile(
             '
-Éh
+Åh
 	api.protolongbridge.quote.v1"!
 SecurityRequest
 symbol (	"&
@@ -601,7 +601,7 @@ THREE_HOUR¥
 QUERY_BY_DATE*&
 	Direction
 BACKWARD 
-FORWARDBF Brown\\Longbridge\\Proto\\Control‚"Brown\\Longbridge\\Proto\\GPBMetadatabproto3'
+FORWARDBD Brown\\Longbridge\\Proto\\Quote‚"Brown\\Longbridge\\Proto\\GPBMetadatabproto3'
         , true);
 
         static::$is_initialized = true;

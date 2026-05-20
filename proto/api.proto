@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package longbridge.quote.v1;
 
-option php_namespace = "Brown\\Longbridge\\Proto\\Control";
+option php_namespace = "Brown\\Longbridge\\Proto\\Quote";
 option php_metadata_namespace = "Brown\\Longbridge\\Proto\\GPBMetadata";
 // 协议指令定义
 enum Command {
