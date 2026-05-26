@@ -164,8 +164,27 @@ final class LongbridgeWsClient
             $left = max(0.001, $deadline - microtime(true));
             $frame = $this->client->recv($left);
 
-            if ($frame === false || $frame === null || !isset($frame->data)) {
+            if ($frame === false || $frame === null) {
                 return null;
+            }
+
+            if ($frame instanceof \Swoole\WebSocket\CloseFrame) {
+                $this->close();
+                return null;
+            }
+
+            $opcode = (int)($frame->opcode ?? 0);
+
+            // 只解析业务二进制帧；ping/pong/close/text 都不要交给 LongbridgeCodec。
+            if ($opcode !== \WEBSOCKET_OPCODE_BINARY) {
+                if (defined('WEBSOCKET_OPCODE_PING') && $opcode === \WEBSOCKET_OPCODE_PING) {
+                    $this->client->push($frame->data ?? '', \WEBSOCKET_OPCODE_PONG);
+                }
+                continue;
+            }
+
+            if (!isset($frame->data) || $frame->data === '') {
+                continue;
             }
 
             $packet = $this->codec->decode($frame->data);
