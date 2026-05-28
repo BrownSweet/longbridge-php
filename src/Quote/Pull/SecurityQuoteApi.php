@@ -26,13 +26,13 @@ use Brown\Longbridge\Proto\Quote\UserQuoteProfileResponse;
 use Brown\Longbridge\Proto\Quote\WarrantFilterListResponse;
 use Brown\Longbridge\Proto\Quote\WarrantQuoteResponse;
 use Brown\Longbridge\Quote\Pull\Protobuf\QuoteProtobuf;
-use Brown\Longbridge\Socket\LongbridgeWsClient;
+use Brown\Longbridge\Socket\WsClientInterface;
 use RuntimeException;
 
 final class SecurityQuoteApi
 {
     public function __construct(
-        private readonly LongbridgeWsClient $client
+        private readonly WsClientInterface $client
     ) {
     }
 

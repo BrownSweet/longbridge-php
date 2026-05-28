@@ -14,7 +14,7 @@ use Brown\Longbridge\Protocol\Packet;
 use RuntimeException;
 use Swoole\Coroutine\Http\Client;
 
-final class LongbridgeWsClient
+final class LongbridgeWsClient implements WsClientInterface
 {
     private ?Client $client = null;
     private bool $isAuthenticated = false;

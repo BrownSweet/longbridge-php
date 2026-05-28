@@ -9,13 +9,13 @@ use Brown\Longbridge\Proto\Quote\SubType;
 use Brown\Longbridge\Proto\Quote\SubscriptionResponse;
 use Brown\Longbridge\Proto\Quote\UnsubscribeResponse;
 use Brown\Longbridge\Quote\Subscribe\Protobuf\SubscribeProtobuf;
-use Brown\Longbridge\Socket\LongbridgeWsClient;
+use Brown\Longbridge\Socket\WsClientInterface;
 use RuntimeException;
 
 final class SubscriptionApi
 {
     public function __construct(
-        private readonly LongbridgeWsClient $client
+        private readonly WsClientInterface $client
     ) {
     }
 

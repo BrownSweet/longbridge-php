@@ -6,13 +6,13 @@ namespace Brown\Longbridge\Quote\Push;
 
 use Brown\Longbridge\Proto\Quote\Command as QuoteCommand;
 use Brown\Longbridge\Quote\Push\Protobuf\PushProtobuf;
-use Brown\Longbridge\Socket\LongbridgeWsClient;
+use Brown\Longbridge\Socket\WsClientInterface;
 use RuntimeException;
 
 final class QuotePushApi
 {
     public function __construct(
-        private readonly LongbridgeWsClient $client
+        private readonly WsClientInterface $client
     ) {
     }
 

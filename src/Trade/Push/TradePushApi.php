@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Brown\Longbridge\Trade\Push;
 
 use Brown\Longbridge\Proto\Trade\Command as TradeCommand;
-use Brown\Longbridge\Socket\LongbridgeWsClient;
+use Brown\Longbridge\Socket\WsClientInterface;
 use Brown\Longbridge\Trade\Push\Protobuf\TradePushProtobuf;
 use RuntimeException;
 
 final class TradePushApi
 {
     public function __construct(
-        private readonly LongbridgeWsClient $client
+        private readonly WsClientInterface $client
     ) {
     }
 

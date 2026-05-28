@@ -2,6 +2,13 @@
 
 轻量级长桥 OpenAPI PHP 客户端，覆盖 HTTP API、OAuth、legacy 签名、WebSocket/protobuf 行情和交易推送。项目保持数组返回风格，不引入 DTO。
 
+## 项目文档
+
+- [中文功能覆盖表](docs/coverage.zh-CN.md)
+- [English feature coverage matrix](docs/coverage.en.md)
+- [维护承诺 / Maintenance commitment](MAINTENANCE.md)
+- [MIT License](LICENSE)
+
 ## 环境要求
 
 - PHP `>= 8.2`
@@ -255,4 +262,23 @@ protoc --proto_path=proto --php_out=generated proto/subscribe.proto
 composer validate --no-check-publish
 composer dump-autoload
 Get-ChildItem src,generated,examples -Recurse -Filter *.php | ForEach-Object { php -l $_.FullName }
+```
+
+自动化测试：
+
+```bash
+composer install
+composer test
+```
+
+WebSocket 集成测试需要真实 OAuth token 和 `ext-swoole`，默认不跑真实连接：
+
+```bash
+LONGBRIDGE_OAUTH_ACCESS_TOKEN=xxx LONGBRIDGE_REGION=cn composer test:integration
+```
+
+phpstudy Windows 环境如果 PHP 8.2 没有默认启用扩展，可以显式指定：
+
+```powershell
+& 'G:\phpstudy_pro\Extensions\php\php8.2.9nts\php.exe' -d extension_dir='G:\phpstudy_pro\Extensions\php\php8.2.9nts\ext' -d extension=openssl -d extension=mbstring -d extension=zip vendor\bin\phpunit
 ```
